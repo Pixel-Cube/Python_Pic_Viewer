@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "python-pic-viewer"
+version = "0.1.0"
+description = ""
+authors = ["Pixel_Cube <1531412938@qq.com>", "XiLaiTL <xilaitl@qq.com>"]
+readme = "README.md"
+package-mode = false
+packages = [{include = "image_viewer"}]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.14"
+tkinterdnd2 = "^0.4.2"
+pillow = "^11.0.0"
+keyboard = "^0.13.5"
+pyinstaller = "^6.11.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
