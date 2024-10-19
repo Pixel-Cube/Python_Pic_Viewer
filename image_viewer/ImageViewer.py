@@ -40,6 +40,8 @@ class ImageViewer:
         self.zoom_factor_before = self.zoom_factor
         self.zoom_coord = (window_width//2, window_height//2)
         self.image_coord = (window_width//2, window_height//2)
+        self.is_dragging = False  # 标志位
+        self.drag_data = {"x": 0, "y": 0, "item": None}
         # 使用keyboard模块绑定键盘事件
         keyboard.on_press_key("left", self.show_previous_image)
         keyboard.on_press_key("right", self.show_next_image)
@@ -64,6 +66,12 @@ class ImageViewer:
 
         # 绑定鼠标滚轮事件
         self.root.bind("<MouseWheel>", self.zoom_image)
+
+        # 绑定拖放
+        self.root.bind("<Button-2>", self.start_drag)
+        self.root.bind("<B2-Motion>", self.drag)
+        self.root.bind("<ButtonRelease-2>", self.end_drag)  # 绑定鼠标释放事件
+
 
     def load_images(self, folder_path, selected_file):
         if folder_path:
@@ -225,5 +233,43 @@ class ImageViewer:
             mouse_x, mouse_y = self.zoom_coord
             new_center_x = center_x + (center_x - mouse_x)*(self.zoom_factor-self.zoom_factor_before)
             new_center_y = center_y + (center_y - mouse_y)*(self.zoom_factor-self.zoom_factor_before)
-            print(center_x,center_y,mouse_x,mouse_y,new_center_x,new_center_y)
             self.image_coord=(new_center_x, new_center_y)
+
+    def start_drag(self, event):
+        self.is_dragging = True
+        self.drag_data["x"] = event.x
+        self.drag_data["y"] = event.y
+
+        # 如果鼠标在方块外，则将方块边缘平移至鼠标位置
+        bbox = self.canvas.bbox(self.image_id)
+        square_x1, square_y1, square_x2, square_y2 = bbox
+        mouse_x, mouse_y = event.x, event.y
+
+        new_x1, new_y1, new_x2, new_y2 = square_x1, square_y1, square_x2, square_y2
+
+        if not (square_x1 <= mouse_x <= square_x2 and square_y1 <= mouse_y <= square_y2):
+            if mouse_x < square_x1:
+                new_x1 = mouse_x
+                new_x2 = new_x1 + (square_x2 - square_x1)
+            elif mouse_x > square_x2:
+                new_x2 = mouse_x
+                new_x1 = new_x2 - (square_x2 - square_x1)
+            if mouse_y < square_y1:
+                new_y1 = mouse_y
+                new_y2 = new_y1 + (square_y2 - square_y1)
+            elif mouse_y > square_y2:
+                new_y2 = mouse_y
+                new_y1 = new_y2 - (square_y2 - square_y1)
+
+            self.canvas.coords(self.image_id, new_x1, new_y1)
+
+    def drag(self, event):
+        if self.is_dragging:
+            dx = event.x - self.drag_data["x"]
+            dy = event.y - self.drag_data["y"]
+            self.canvas.move(self.image_id, dx, dy)
+            self.drag_data["x"] = event.x
+            self.drag_data["y"] = event.y
+
+    def end_drag(self, event):
+        self.is_dragging = False
