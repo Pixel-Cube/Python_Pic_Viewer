@@ -4,6 +4,7 @@ from tkinter import filedialog
 
 import keyboard
 from PIL import Image, ImageTk, ImageSequence
+from PIL.ImageOps import scale
 from tkinterdnd2 import DND_FILES,TkinterDnD
 
 
@@ -26,14 +27,19 @@ class ImageViewer:
         position_down = int(screen_height/2 - window_height/2)
         self.root.geometry(f"+{position_right}+{position_down}")
 
-        self.image_label = tk.Label(root)
-        self.image_label.pack(fill=tk.BOTH, expand=True)
+        self.canvas = tk.Canvas(root, bg='white')
+        self.canvas.pack(fill=tk.BOTH, expand=True)
+
         self.image_list = []
+        self.image_id = None
+        self.image = None
         self.current_image_index = 0
         self.animation = None
         self.frames = []
         self.zoom_factor = 1.0
-
+        self.zoom_factor_before = self.zoom_factor
+        self.zoom_coord = (window_width//2, window_height//2)
+        self.image_coord = (window_width//2, window_height//2)
         # 使用keyboard模块绑定键盘事件
         keyboard.on_press_key("left", self.show_previous_image)
         keyboard.on_press_key("right", self.show_next_image)
@@ -84,6 +90,19 @@ class ImageViewer:
             self.play_gif(image)
         else:
             self.display_image(image)
+        self.zoom()
+        self.create_image()
+        new_x1, new_y1 = self.image_coord
+        self.canvas.coords(self.image_id, new_x1, new_y1)
+
+    def create_image(self):
+        if self.image_id:
+            self.canvas.delete(self.image_id)  # 删除之前的图片
+
+        x0 = (self.canvas.winfo_width()) // 2
+        y0 = (self.canvas.winfo_height()) // 2
+
+        self.image_id = self.canvas.create_image(x0,y0,image=self.image, anchor=tk.CENTER)
 
     def display_image(self, image):
         # 获取窗口的高度
@@ -95,8 +114,7 @@ class ImageViewer:
         resized_image = image.resize((new_width, new_height), Image.NEAREST)
 
         photo = ImageTk.PhotoImage(resized_image)
-        self.image_label.config(image=photo)
-        self.image_label.image = photo
+        self.image = photo
 
     def play_gif(self, image):
         # 缓存调整后的帧
@@ -111,8 +129,7 @@ class ImageViewer:
 
         def update_frame(index):
             frame = self.frames[index]
-            self.image_label.config(image=frame)
-            self.image_label.image = frame
+            self.image = frame
             self.animation = self.root.after(100, update_frame, (index + 1) % len(self.frames))
         update_frame(0)
 
@@ -179,6 +196,7 @@ class ImageViewer:
             else:
                 self.current_image_index = (self.current_image_index + 1) % len(self.image_list)
             self.zoom_factor = 1.0  # 重置缩放比例
+            self.zoom_factor_before = self.zoom_factor
             self.show_image(self.current_image_index)
 
     def drop_file(self, event):
@@ -192,7 +210,20 @@ class ImageViewer:
     def zoom_image(self, event):
         if self.image_list:
             if event.delta > 0:
+                self.zoom_factor_before = self.zoom_factor
                 self.zoom_factor *= 1.1
             else:
+                self.zoom_factor_before = self.zoom_factor
                 self.zoom_factor /= 1.1
+            self.zoom_coord = (self.canvas.canvasx(event.x), self.canvas.canvasy(event.y))
             self.show_image(self.current_image_index)
+
+    def zoom(self):
+        if self.image_id:
+            square_x1,square_y1,square_x2,square_y2  = self.canvas.bbox(self.image_id)
+            center_x,center_y = (square_x1+square_x2)//2, (square_y1+square_y2)//2
+            mouse_x, mouse_y = self.zoom_coord
+            new_center_x = center_x + (center_x - mouse_x)*(self.zoom_factor-self.zoom_factor_before)
+            new_center_y = center_y + (center_y - mouse_y)*(self.zoom_factor-self.zoom_factor_before)
+            print(center_x,center_y,mouse_x,mouse_y,new_center_x,new_center_y)
+            self.image_coord=(new_center_x, new_center_y)
