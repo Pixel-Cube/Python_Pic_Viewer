@@ -259,29 +259,27 @@ class ImageViewer:
         self.is_dragging = True
         self.drag_data["x"] = event.x
         self.drag_data["y"] = event.y
-
-        # 如果鼠标在方块外，则将方块边缘平移至鼠标位置
-        bbox = self.canvas.bbox(self.image_id)
-        square_x1, square_y1, square_x2, square_y2 = bbox
-        mouse_x, mouse_y = event.x, event.y
-
-        new_x1, new_y1, new_x2, new_y2 = square_x1, square_y1, square_x2, square_y2
-
-        if not (square_x1 <= mouse_x <= square_x2 and square_y1 <= mouse_y <= square_y2):
-            if mouse_x < square_x1:
-                new_x1 = mouse_x
-                new_x2 = new_x1 + (square_x2 - square_x1)
-            elif mouse_x > square_x2:
-                new_x2 = mouse_x
-                new_x1 = new_x2 - (square_x2 - square_x1)
-            if mouse_y < square_y1:
-                new_y1 = mouse_y
-                new_y2 = new_y1 + (square_y2 - square_y1)
-            elif mouse_y > square_y2:
-                new_y2 = mouse_y
-                new_y1 = new_y2 - (square_y2 - square_y1)
-
-            self.canvas.coords(self.image_id, new_x1, new_y1)
+    
+        # 获取图片的边界框坐标
+        if self.image_id:
+            x1, y1, x2, y2 = self.canvas.bbox(self.image_id)
+            
+            # 检查鼠标是否在图片边界框外
+            if event.x < x1 or event.x > x2 or event.y < y1 or event.y > y2:
+                # 计算平移量，将图片边缘平移至鼠标位置
+                dx = 0
+                dy = 0
+                if event.x < x1:
+                    dx = event.x - x1
+                elif event.x > x2:
+                    dx = event.x - x2
+                if event.y < y1:
+                    dy = event.y - y1
+                elif event.y > y2:
+                    dy = event.y - y2
+                self.canvas.move(self.image_id, dx, dy)
+                self.drag_data["x"] = event.x
+                self.drag_data["y"] = event.y
 
     def drag(self, event):
         if self.is_dragging:
