@@ -1,16 +1,19 @@
 import os
 import tkinter as tk
-from tkinter import filedialog
+from tkinter import filedialog, PhotoImage, colorchooser
+from typing import List
 
 import keyboard
 from PIL import Image, ImageTk, ImageSequence
-from PIL.ImageOps import scale
-from tkinterdnd2 import DND_FILES,TkinterDnD
+from tkinterdnd2 import DND_FILES, TkinterDnD
 
+TRANSCOLOUR = '#FFFFFE'
 
 class ImageViewer:
     def __init__(self, root):
-        self.root = root
+        self.background_color = TRANSCOLOUR
+        self.background_id = None
+        self.root:TkinterDnD.Tk = root
         self.root.title("图片查看器")
 
         # 获取屏幕分辨率
@@ -27,15 +30,15 @@ class ImageViewer:
         position_down = int(screen_height/2 - window_height/2)
         self.root.geometry(f"+{position_right}+{position_down}")
 
-        self.canvas = tk.Canvas(root, bg='white')
+        self.canvas = tk.Canvas(root)
         self.canvas.pack(fill=tk.BOTH, expand=True)
-
-        self.image_list = []
-        self.image_id = None
-        self.image = None
+        self.root.wm_attributes('-transparentcolor',TRANSCOLOUR)
+        self.image_list:List[str] = []
+        self.image_id: int|None = None
+        self.image: PhotoImage|None = None
         self.current_image_index = 0
-        self.animation = None
-        self.frames = []
+        self.animation:str|None = None # identifier
+        self.frames: List[PhotoImage] = []
         self.zoom_factor = 1.0
         self.zoom_factor_before = self.zoom_factor
         self.zoom_coord = (window_width//2, window_height//2)
@@ -52,6 +55,8 @@ class ImageViewer:
         # 创建右键菜单
         self.context_menu = tk.Menu(root, tearoff=0)
         self.context_menu.add_command(label="打开文件", command=self.open_file)
+        self.context_menu.add_command(label="修改背景颜色", command=self.choose_color)
+        self.context_menu.add_command(label="设置背景透明", command=self.choose_color_transparent)
 
         # 绑定鼠标点击事件
         self.root.bind("<Button-1>", self.on_click)
@@ -72,8 +77,7 @@ class ImageViewer:
         self.root.bind("<B2-Motion>", self.drag)
         self.root.bind("<ButtonRelease-2>", self.end_drag)  # 绑定鼠标释放事件
 
-
-    def load_images(self, folder_path, selected_file):
+    def load_images(self, folder_path:str, selected_file:str):
         if folder_path:
             # 获取文件列表
             self.image_list = [os.path.join(folder_path, file_name) for file_name in os.listdir(folder_path) if file_name.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp'))]
@@ -84,7 +88,7 @@ class ImageViewer:
             # 定位选择的图片文件的顺序值
             self.current_image_index = self.image_list.index(selected_file)
 
-    def show_image(self, index):
+    def show_image(self, index:int):
         image_path = self.image_list[index]
         image = Image.open(image_path)
 
@@ -112,7 +116,19 @@ class ImageViewer:
 
         self.image_id = self.canvas.create_image(x0,y0,image=self.image, anchor=tk.CENTER)
 
-    def display_image(self, image):
+    def choose_color_transparent(self):
+        self.background_color = TRANSCOLOUR
+        self.canvas.itemconfig(self.background_id, fill=self.background_color, outline=self.background_color)
+
+    def choose_color(self):
+        # 打开调色板，并将选定的颜色存储在变量chosen_color
+        chosen_color = colorchooser.askcolor()
+        # 如果用户选择了颜色，则更新标签的背景颜色
+        if chosen_color[0] != '':
+            self.background_color = chosen_color[1]
+            self.canvas.itemconfig(self.background_id,fill=self.background_color,outline=self.background_color)
+
+    def display_image(self, image:Image):
         # 获取窗口的高度
         window_height = self.root.winfo_height()
         # 按比例调整图片大小
@@ -124,7 +140,7 @@ class ImageViewer:
         photo = ImageTk.PhotoImage(resized_image)
         self.image = photo
 
-    def play_gif(self, image):
+    def play_gif(self, image:Image):
         # 缓存调整后的帧
         self.frames = []
         window_height = self.root.winfo_height()
@@ -174,7 +190,7 @@ class ImageViewer:
         self.current_image_index = self.image_list.index(current_image_path)
         self.show_image(self.current_image_index)
 
-    def open_single_file(self,file_path):
+    def open_single_file(self,file_path:str):
         if file_path:
             folder_path = os.path.dirname(file_path)
             self.load_images(folder_path, file_path)
@@ -212,6 +228,10 @@ class ImageViewer:
         self.open_single_file(file_path)
 
     def on_resize(self, event):
+        self.root.configure(width=event.width, height=event.height)
+        self.background_id = self.canvas.create_rectangle(0, 0, self.canvas.winfo_width(), self.canvas.winfo_height(),
+                                     fill=self.background_color,
+                                     outline=self.background_color)
         if self.image_list:
             self.show_image(self.current_image_index)
 
